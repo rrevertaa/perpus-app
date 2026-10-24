@@ -3,7 +3,19 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\HomeController; 
+use App\Http\Controllers\BookController;   // baris baru: memanggil BookController 
 use Inertia\Inertia;
+
+Route::get('/', [HomeController::class, 'index']); 
+Route::get('/tentang', [HomeController::class, 'tentang']); 
+Route::get('/kontak', [HomeController::class, 'kontak']); 
+  
+// Blok baru: seluruh route di dalamnya hanya bisa diakses setelah login 
+Route::middleware(['auth'])->group(function () { 
+    Route::resource('books', BookController::class); 
+    // baris di atas otomatis mewakili 7 alamat CRUD (index, create, store, show, edit, update, destroy) 
+});
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
