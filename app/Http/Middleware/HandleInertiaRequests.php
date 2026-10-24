@@ -27,13 +27,18 @@ class HandleInertiaRequests extends Middleware
      *
      * @return array<string, mixed>
      */
-    public function share(Request $request): array
-    {
-        return [
-            ...parent::share($request),
-            'auth' => [
-                'user' => $request->user(),
-            ],
-        ];
-    }
+        public function share(Request $request): array 
+    { 
+        return [ 
+            ...parent::share($request), 
+            'auth' => [ 
+                'user' => $request->user(), 
+            ], 
+            // Blok baru: membagikan pesan flash ke SELURUH halaman Vue secara otomatis 
+            'flash' => [
+                'success' => fn () => session('success'),
+                'error' => fn () => session('error'),
+        ],
+        ]; 
+    } 
 }
