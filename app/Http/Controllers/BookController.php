@@ -17,8 +17,9 @@ class BookController extends Controller
             ->when($request->search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('kode_buku', 'like', "%{$search}%")
-                    ->orWhere('judul', 'like', "%{$search}%")
-                    ->orWhere('pengarang', 'like', "%{$search}%");
+                        ->orWhere('judul', 'like', "%{$search}%")
+                        ->orWhere('pengarang', 'like', "%{$search}%")
+                        ->orWhere('penerbit', 'like', "%{$search}%");
                 });
             })
             ->latest()
@@ -28,6 +29,47 @@ class BookController extends Controller
         return inertia('Books/Index', [
             'books' => $books,
             'search' => $request->search,
+        ]);
+    }
+
+    /**
+     * Endpoint JSON untuk live search buku (dipanggil oleh Axios).
+     */
+    public function search(Request $request)
+    {
+        $kataKunci = $request->query('q', '');
+
+        $books = Book::where(function ($query) use ($kataKunci) {
+            $query->where('kode_buku', 'like', "%{$kataKunci}%")
+                ->orWhere('judul', 'like', "%{$kataKunci}%")
+                ->orWhere('pengarang', 'like', "%{$kataKunci}%")
+                ->orWhere('penerbit', 'like', "%{$kataKunci}%");
+        })
+            ->latest()
+            ->limit(10)
+            ->get([
+                'id',
+                'kode_buku',
+                'judul',
+                'pengarang',
+                'penerbit',
+                'stok',
+            ]);
+
+        return response()->json($books);
+    }
+
+    /**
+     * Endpoint untuk memeriksa ketersediaan kode buku secara realtime.
+     */
+    public function cekKode(Request $request)
+    {
+        $kode = $request->query('kode', '');
+
+        $sudahDipakai = Book::where('kode_buku', $kode)->exists();
+
+        return response()->json([
+            'tersedia' => ! $sudahDipakai,
         ]);
     }
 
@@ -69,46 +111,45 @@ class BookController extends Controller
     }
 
     /**
-     * Show the form for editing the specified resource.
+     * Menampilkan form edit buku.
      */
-        public function edit(Book $book) 
-    { 
-        // $book sudah otomatis berisi data buku yang akan diedit (hasil Route Model Binding) 
-        // Kirim data tersebut ke halaman Vue 'Books/Edit' agar form bisa menampilkan nilai lama 
-        return inertia('Books/Edit', [ 
-            'book' => $book, 
-        ]); 
-    } 
-    
-    public function update(Request $request, Book $book) 
-    { 
-        // Aturan validasi sama seperti store() pada Pertemuan 6, dengan SATU perbedaan penting: 
-        // aturan unique:books untuk kode_buku perlu mengizinkan kode milik buku ini sendiri, 
-        // karena jika tidak, Laravel akan mengira kode_buku ini 'sudah dipakai' oleh dirinya sendiri 
-        $validated = $request->validate([ 
-            'kode_buku'  => 'required|unique:books,kode_buku,' . $book->id,  // kecualikan id buku ini 
-            'judul'      => 'required|max:255', 
-            'pengarang'  => 'required|max:255', 
-            'penerbit'   => 'nullable|max:255', 
-            'tahun'      => 'nullable|digits:4', 
-            'stok'       => 'required|integer|min:0', 
-        ]); 
-    
-        // Mengganti data lama pada $book dengan data baru yang sudah divalidasi 
-        $book->update($validated); 
-    
-        // Kembali ke daftar buku, sertakan flash message (lihat Dasar Teori E.3) 
-        return redirect()->route('books.index')->with('success', 'Buku berhasil diperbarui'); 
+    public function edit(Book $book)
+    {
+        return inertia('Books/Edit', [
+            'book' => $book,
+        ]);
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Memperbarui data buku.
      */
-        public function destroy(Book $book) 
-    { 
-    // Menghapus baris data buku ini secara permanen dari tabel books 
-    $book->delete(); 
-    // Kembali ke daftar buku, sertakan flash message 
-    return redirect()->route('books.index')->with('success', 'Buku berhasil dihapus'); 
-    } 
+    public function update(Request $request, Book $book)
+    {
+        $validated = $request->validate([
+            'kode_buku' => 'required|unique:books,kode_buku,' . $book->id,
+            'judul' => 'required|max:255',
+            'pengarang' => 'required|max:255',
+            'penerbit' => 'nullable|max:255',
+            'tahun' => 'nullable|digits:4',
+            'stok' => 'required|integer|min:0',
+        ]);
+
+        $book->update($validated);
+
+        return redirect()
+            ->route('books.index')
+            ->with('success', 'Buku berhasil diperbarui');
+    }
+
+    /**
+     * Menghapus data buku.
+     */
+    public function destroy(Book $book)
+    {
+        $book->delete();
+
+        return redirect()
+            ->route('books.index')
+            ->with('success', 'Buku berhasil dihapus');
+    }
 }

@@ -13,11 +13,24 @@ Route::get('/tentang', [HomeController::class, 'tentang']);
 Route::get('/kontak', [HomeController::class, 'kontak']); 
   
 // Blok baru: seluruh route di dalamnya hanya bisa diakses setelah login 
-Route::middleware(['auth'])->group(function () { 
-    Route::resource('books', BookController::class); 
-    // baris di atas otomatis mewakili 7 alamat CRUD (index, create, store, show, edit, update, destroy) 
+
+Route::middleware(['auth'])->group(function () {
+
+    // Route AJAX (JSON) HARUS ditulis DI ATAS Route::resource (lihat E.5)
+    Route::get('books/search', [BookController::class, 'search'])
+        ->name('books.search');
+    Route::get('members/search', [MemberController::class, 'search'])
+        ->name('members.search');
+    Route::get('members/cek-nis', [MemberController::class, 'cekNis'])
+        ->name('members.cek-nis');
+    Route::get('/books/cek-kode', [BookController::class, 'cekKode'])
+        ->name('books.cek-kode');
+
+    Route::resource('books', BookController::class);
     Route::resource('members', MemberController::class);
+
 });
+
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [

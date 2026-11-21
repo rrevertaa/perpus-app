@@ -22,11 +22,61 @@ class MemberController extends Controller
             });
         })->latest()->paginate(10)->withQueryString();
 
-        return inertia('Members/Index', [
-            'members' => $members,
-            'search' => $request->search,
+        
+    return inertia('Members/Index', [
+        'members' => $members,
+        'search' => $request->search,
+    ]);
+
+    }
+
+    /**
+     * Endpoint JSON untuk live search anggota (dipanggil oleh Axios).
+     */
+    public function search(Request $request)
+    {
+        // Kata kunci dibaca dari query string, misalnya /members/search?q=ani
+        $kataKunci = $request->query('q', '');
+
+        // nama ATAU nis_nim yang cocok, maksimal 10 baris
+        $members = Member::where(function ($query) use ($kataKunci) {
+            $query->where('nama', 'like', "%{$kataKunci}%")
+                ->orWhere('nis_nim', 'like', "%{$kataKunci}%");
+        })
+            ->latest()
+            ->limit(10)
+            ->get(['id', 'nama', 'nis_nim', 'no_hp', 'foto']);
+
+        
+        return response()->json($members);
+    }
+
+    /**
+     * Endpoint JSON untuk validasi realtime: apakah NIS/NIM masih tersedia?
+     */
+        public function cekNis(Request $request)
+    {
+        // NIS/NIM yang sedang diketik, misalnya /members/cek-nis?nis_nim=2023001
+        $nisNim = $request->query('nis_nim', '');
+
+        // Abaikan ID anggota yang sedang diedit (kosong pada form tambah)
+        $abaikanId = $request->query('abaikan');
+
+        // Apakah ada anggota lain yang sudah memakai NIS/NIM ini?
+        $sudahDipakai = Member::where('nis_nim', $nisNim)
+            ->when($abaikanId, function ($query, $id) {
+                // Jika ada ID yang diabaikan, jangan hitung anggota itu sendiri
+                $query->where('id', '!=', $id);
+            })
+            ->exists();
+
+        // Dibalas sebagai JSON, misalnya {"tersedia": true}
+        return response()->json([
+            'tersedia' => ! $sudahDipakai,
         ]);
     }
+
+
 
 
     /**
