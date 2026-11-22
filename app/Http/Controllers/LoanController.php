@@ -97,7 +97,61 @@ class LoanController extends Controller
         });
 
         // 5. Kembali ke daftar peminjaman dengan pesan sukses
+        
         return redirect()->route('loans.index')
             ->with('success', 'Peminjaman berhasil disimpan. Stok buku berkurang 1.');
-    }
+        }
+
+        /**
+         * Memproses pengembalian buku dan menghitung denda.
+         * Parameter Loan $loan diisi otomatis oleh Laravel (route model binding):
+         * Laravel membaca {loan} pada URL, lalu mencari baris loans yang id-nya
+         * sama dengan angka tersebut.
+         */
+        public function kembalikan(Loan $loan)
+        {
+            // 1. Tolak jika buku ini sudah dikembalikan sebelumnya.
+            // Hal ini bisa terjadi jika tombol ditekan dua kali.
+            if ($loan->status === 'dikembalikan') {
+                // back() = kembali ke halaman sebelumnya, membawa pesan error
+                // dengan kunci 'loan' (dibaca Vue sebagai errors.loan)
+                return back()->withErrors([
+                    'loan' => 'Buku ini sudah dikembalikan sebelumnya.',
+                ]);
+            }
+
+            // 2. Hitung denda SEBELUM data diubah.
+            // Selama tanggal_kembali masih kosong, atribut virtual memakai hari ini sebagai pembanding.
+            $hariTerlambat = $loan->hari_terlambat;
+            $denda = $loan->perkiraan_denda;
+
+            // 3. Dua pekerjaan yang harus berhasil bersama-sama atau gagal bersama-sama:
+            // (a) mengubah data peminjaman, (b) menambah stok buku.
+            // "use ($loan, $denda)" memasukkan variabel luar ke dalam fungsi.
+            DB::transaction(function () use ($loan, $denda) {
+                // (a) Tandai selesai, catat tanggal kembali (hari ini) dan denda.
+                // Denda disimpan agar nilainya tetap walau tarif berubah.
+                $loan->update([
+                    'status' => 'dikembalikan',
+                    'tanggal_kembali' => today()->toDateString(),
+                    'denda' => $denda,
+                ]);
+
+                // (b) Buku kembali ke rak, jadi stok bertambah 1
+                $loan->book->increment('stok');
+            });
+
+            // 4. Susun pesan sukses. Kalimat denda hanya ditambahkan jika ada.
+            $pesan = 'Buku berhasil dikembalikan. Stok buku bertambah 1.';
+
+            if ($denda > 0) {
+                // number_format(angka, jumlah desimal, pemisah desimal, pemisah ribuan)
+                $pesan .= ' Terlambat '.$hariTerlambat.' Hari, denda Rp'
+                    .number_format($denda, 0, ',', '.').'.';
+            }
+
+            // 5. Kembali ke halaman daftar peminjaman dengan pesan sukses
+            return back()->with('success', $pesan);
+        }
 }
+
