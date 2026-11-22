@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController; 
 use App\Http\Controllers\BookController;   // baris baru: memanggil BookController 
 use App\Http\Controllers\MemberController;
+use App\Http\Controllers\LoanController; 
 use Inertia\Inertia;
 
 Route::get('/', [HomeController::class, 'index']); 
@@ -28,6 +29,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::resource('books', BookController::class);
     Route::resource('members', MemberController::class);
+    Route::resource('loans', LoanController::class)->only(['index', 'create', 'store']);
 
 });
 

@@ -4,6 +4,7 @@ import { useForm } from '@inertiajs/vue3';
 import { ref, watch, onBeforeUnmount } from 'vue';
 import axios from 'axios';
 
+// useForm membuat sebuah objek form yang otomatis mengelola nilai input dan pesan error
 const form = useForm({
     kode_buku: '',
     judul: '',
@@ -13,128 +14,73 @@ const form = useForm({
     stok: 0,
 });
 
-// Status pemeriksaan kode buku
-const statusKode = ref('');
-let timerKode = null;
-let permintaanKode = null;
-
-// Memeriksa apakah kode buku sudah digunakan
-async function periksaKode() {
-    if (permintaanKode) {
-        permintaanKode.abort();
-    }
-
-    permintaanKode = new AbortController();
-    statusKode.value = 'memeriksa';
-
-    try {
-        const respons = await axios.get(route('books.cek-kode'), {
-            params: {
-                kode: form.kode_buku.trim(),
-            },
-            signal: permintaanKode.signal,
-        });
-
-        statusKode.value = respons.data.tersedia
-            ? 'tersedia'
-            : 'terpakai';
-    } catch (error) {
-        if (axios.isCancel(error) || error.name === 'CanceledError') {
-            return;
-        }
-
-        statusKode.value = 'gagal';
-    }
-}
-
-// Memeriksa kode setelah pengguna berhenti mengetik selama 500 ms
-watch(() => form.kode_buku, (nilai) => {
-    clearTimeout(timerKode);
-
-    if (permintaanKode) {
-        permintaanKode.abort();
-    }
-
-    if (!nilai || nilai.trim() === '') {
-        statusKode.value = '';
-        return;
-    }
-
-    statusKode.value = 'memeriksa';
-    timerKode = setTimeout(periksaKode, 500);
-});
-
-// Membersihkan timer dan permintaan ketika halaman ditinggalkan
-onBeforeUnmount(() => {
-    clearTimeout(timerKode);
-
-    if (permintaanKode) {
-        permintaanKode.abort();
-    }
-});
-
-// Dipanggil ketika tombol submit diklik
+// Dipanggil kembali saat tombol submit diklik
 function submit() {
+    // Mengirim data form ke route books.store, yaitu method store() pada BookController
     form.post(route('books.store'));
 }
 </script>
 
 <template>
     <AuthenticatedLayout>
-        <h1>Tambah Buku</h1>
+        <div class="p-4">
+            <h1 class="text-xl font-bold">Tambah Buku</h1>
 
-        <form @submit.prevent="submit">
+            <!-- @submit.prevent mencegah form reload halaman, lalu menjalankan submit() -->
+            <!-- space-y-3: jarak antar kelompok isian; setiap isian dibungkus div -->
+            <form @submit.prevent="submit" class="mt-3 space-y-3">
+                <div>
+                    <!-- label class="block": label tampil sebagai baris sendiri, isian turun ke bawah -->
+                    <label class="block">Kode Buku</label>
+                    <input v-model="form.kode_buku" type="text">
+                    <!-- Menampilkan pesan error dari validasi Laravel jika ada -->
+                    <div v-if="form.errors.kode_buku" class="text-red-600">
+                        {{ form.errors.kode_buku }}
+                    </div>
+                </div>
 
-            <label>Kode Buku</label>
-            <input v-model="form.kode_buku" type="text">
+                <div>
+                    <label class="block">Judul</label>
+                    <input v-model="form.judul" type="text">
+                    <div v-if="form.errors.judul" class="text-red-600">
+                        {{ form.errors.judul }}
+                    </div>
+                </div>
 
-            <span v-if="statusKode === 'memeriksa'" class="text-gray-500">
-                Memeriksa kode buku...
-            </span>
+                <div>
+                    <label class="block">Pengarang</label>
+                    <input v-model="form.pengarang" type="text">
+                    <div v-if="form.errors.pengarang" class="text-red-600">
+                        {{ form.errors.pengarang }}
+                    </div>
+                </div>
 
-            <span v-else-if="statusKode === 'tersedia'" class="text-green-700">
-                Kode buku tersedia.
-            </span>
+                <div>
+                    <label class="block">Penerbit</label>
+                    <input v-model="form.penerbit" type="text">
+                    <div v-if="form.errors.penerbit" class="text-red-600">
+                        {{ form.errors.penerbit }}
+                    </div>
+                </div>
 
-            <span v-else-if="statusKode === 'terpakai'" class="text-red-600">
-                Kode buku sudah digunakan. Gunakan kode lain.
-            </span>
+                <div>
+                    <label class="block">Tahun</label>
+                    <input v-model="form.tahun" type="text">
+                    <div v-if="form.errors.tahun" class="text-red-600">
+                        {{ form.errors.tahun }}
+                    </div>
+                </div>
 
-            <span v-else-if="statusKode === 'gagal'" class="text-yellow-700">
-                Pemeriksaan otomatis gagal. Server akan memeriksa ulang saat disimpan.
-            </span>
+                <div>
+                    <label class="block">Stok</label>
+                    <input v-model="form.stok" type="number">
+                    <div v-if="form.errors.stok" class="text-red-600">
+                        {{ form.errors.stok }}
+                    </div>
+                </div>
 
-            <span v-if="form.errors.kode_buku" class="text-red-600">
-                {{ form.errors.kode_buku }}
-            </span>
-
-            <label>Judul</label>
-            <input v-model="form.judul" type="text">
-            <span v-if="form.errors.judul">
-                {{ form.errors.judul }}
-            </span>
-
-            <label>Pengarang</label>
-            <input v-model="form.pengarang" type="text">
-            <span v-if="form.errors.pengarang">
-                {{ form.errors.pengarang }}
-            </span>
-
-            <label>Penerbit</label>
-            <input v-model="form.penerbit" type="text">
-
-            <label>Tahun</label>
-            <input v-model="form.tahun" type="text">
-
-            <label>Stok</label>
-            <input v-model="form.stok" type="number">
-
-            <button
-                type="submit"
-                :disabled="form.processing || statusKode === 'terpakai'"
-            >
-                Simpan
-            </button>
-        </form>
+                <button type="submit" :disabled="form.processing">Simpan</button>
+            </form>
+        </div>
     </AuthenticatedLayout>
 </template>

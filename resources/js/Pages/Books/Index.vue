@@ -102,65 +102,79 @@ onBeforeUnmount(() => {
 
 <template>
     <AuthenticatedLayout>
-        <h1>Data Buku</h1>
+        <!-- Perbaikan tampilan: seluruh isi dibungkus div p-4 (jarak dalam) seperti halaman Anggota -->
+        <div class="p-4">
+            <h1 class="text-xl font-bold">Data Buku</h1>
 
-        <!-- Flash message: Menampilkan pesan sukses dari session jika ada -->
-        <div
-            v-if="$page.props.flash.success"
-            class="alert alert-success"
-            style="color: red; margin-bottom: 10px;"
-        >
-            {{ $page.props.flash.success }}
+            <!-- Flash message: Menampilkan pesan sukses dari session jika ada -->
+            <div v-if="$page.props.flash.success" class="my-2 text-green-700">
+                {{ $page.props.flash.success }}
+            </div>
+
+            <div class="my-3 flex items-center gap-3">
+                <!-- Link menuju form tambah buku, akan diarahkan ke Books/Create.vue -->
+                <Link href="/books/create">+ Tambah Buku</Link>
+
+                <!-- Tidak ada lagi @keyup.enter: pencarian berjalan otomatis lewat watch(keyword) -->
+                <input
+                    v-model="keyword"
+                    type="text"
+                    placeholder="Ketik judul atau pengarang..."
+                >
+
+                <!-- Penanda bahwa permintaan AJAX sedang berjalan -->
+                <span v-if="sedangMencari" class="text-gray-500">Mencari...</span>
+            </div>
+
+            <!-- Pesan jika permintaan AJAX gagal -->
+            <div v-if="pesanError" class="my-2 text-red-600">
+                {{ pesanError }}
+            </div>
+
+            <!-- border-collapse: garis antar sel menyatu; border px-3 py-2: garis dan jarak isi -->
+            <table class="border-collapse">
+                <thead>
+                    <tr>
+                        <th class="border px-3 py-2">Kode</th>
+                        <th class="border px-3 py-2">Judul</th>
+                        <th class="border px-3 py-2">Pengarang</th>
+                        <th class="border px-3 py-2">Stok</th>
+                        <th class="border px-3 py-2">Aksi</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    <!-- v-for membaca daftarBuku (hasil pencarian atau daftar bawaan), bukan books.data -->
+                    <tr v-for="book in daftarBuku" :key="book.id">
+                        <td class="border px-3 py-2">{{ book.kode_buku }}</td>
+                        <td class="border px-3 py-2">{{ book.judul }}</td>
+                        <td class="border px-3 py-2">{{ book.pengarang }}</td>
+                        <td class="border px-3 py-2">{{ book.stok }}</td>
+                        <td class="border px-3 py-2">
+                            <!-- Link menuju form edit buku, akan diarahkan ke Books/Edit.vue -->
+                            <Link :href="`/books/${book.id}/edit`" class="mr-3">Edit</Link>
+
+                            <!-- Tombol hapus buku, memanggil function hapus() di atas -->
+                            <button @click="hapus(book.id)">Hapus</button>
+                        </td>
+                    </tr>
+
+                    <!-- Pesan jika tidak ada data yang cocok -->
+                    <tr v-if="daftarBuku.length === 0">
+                        <td colspan="5" class="border px-3 py-2">
+                            Tidak ada data yang ditemukan.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Baris baru: tautan paginasi, hanya untuk daftar bawaan (sama seperti halaman Anggota) -->
+            <div v-if="hasilCari === null" class="mt-3 flex gap-3">
+                <template v-for="link in books.links" :key="link.label">
+                    <Link v-if="link.url" :href="link.url" v-html="link.label" />
+                    <span v-else v-html="link.label" class="text-gray-400" />
+                </template>
+            </div>
         </div>
-
-        <!-- Link menuju form tambah buku -->
-        <Link href="/books/create">+ Tambah Buku</Link>
-
-        <!-- Pencarian otomatis melalui watch(keyword) -->
-        <input
-            v-model="keyword"
-            type="text"
-            placeholder="Ketik judul, pengarang, atau penerbit..."
-        >
-
-        <!-- Penanda bahwa permintaan AJAX sedang berjalan -->
-        <span v-if="sedangMencari">Mencari...</span>
-
-        <!-- Pesan jika permintaan AJAX gagal -->
-        <p v-if="pesanError">{{ pesanError }}</p>
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Kode</th>
-                    <th>Judul</th>
-                    <th>Pengarang</th>
-                    <th>Stok</th>
-                    <th>Aksi</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                <!-- Membaca hasil pencarian atau daftar bawaan -->
-                <tr v-for="book in daftarBuku" :key="book.id">
-                    <td>{{ book.kode_buku }}</td>
-                    <td>{{ book.judul }}</td>
-                    <td>{{ book.pengarang }}</td>
-                    <td>{{ book.stok }}</td>
-                    <td>
-                        <!-- Link menuju form edit buku -->
-                        <Link :href="`/books/${book.id}/edit`">Edit</Link>
-
-                        <!-- Tombol hapus buku -->
-                        <button @click="hapus(book.id)">Hapus</button>
-                    </td>
-                </tr>
-
-                <!-- Pesan jika tidak ada data yang cocok -->
-                <tr v-if="daftarBuku.length === 0">
-                    <td colspan="5">Tidak ada buku yang ditemukan.</td>
-                </tr>
-            </tbody>
-        </table>
     </AuthenticatedLayout>
 </template>
